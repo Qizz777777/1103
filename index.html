@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>p5.js 基礎程式設計 - 20題隨機抽10題 (圖像化選項測驗)</title>
+  <!-- 引入 p5.js 核心函式庫 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+  <style>
+    /* 讓網頁全螢幕顯示，消除預設邊距與滾動條 */
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #f0f3f6;
+      font-family: "Microsoft JhengHei", Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+  <script>
+    // ==========================================
+    // 全域變數宣告區
+    // ==========================================
+    let allQuestions = [];       // 儲存完整的 20 題題庫
+    let quizQuestions = [];      // 每次測驗隨機抽出的 10 題
+    let currentQuestionIndex = 0;// 目前顯示的題目索引
+    let score = 0;               // 總得分
+    let submitted = false;       // 是否已經點擊交卷
+    let confettiActive = false;  // 是否啟動彩帶特效
+    let confettiParticles = [];  // 彩帶粒子陣列
+
+    // 介面按鈕 UI
+    let prevButton;              // 上一題按鈕
+    let nextButton;              // 下一題按鈕
+    let submitButton;            // 交卷看成績按鈕
+
+    function setup() {
+      // 建立全螢幕且具響應式的 p5.js 畫布
+      let canvas = createCanvas(windowWidth, windowHeight);
+      canvas.style('display', 'block');
+      
+      // 初始化 20 題完整題庫，並隨機抽取 10 題
+      initQuestionBank();
+      
+      // 建立控制按鈕
+      createUIElements();
+    }
+
+    function draw() {
+      // 設定畫布背景顏色（柔和的淺藍灰色調）
+      background(240, 243, 246);
+
+      // 繪製頂部標題與測驗指引
+      drawHeader();
+
+      // 如果尚未交卷，顯示測驗選擇題畫面；如果已交卷，顯示總成績與彩帶動畫
+      if (!submitted) {
+        drawQuizInterface();
+      } else {
+        drawResultInterface();
+        
+        // 若總成績高於 60%，繪製過關彩帶特效
+        if (confettiActive) {
+          updateAndDrawConfetti();
+        }
+      }
+    }
+
+    // 初始化 20 題 p5.js 基礎選擇題題庫（每個選項配備符合語意的直覺圖像 Emoji）
+    function initQuestionBank() {
+      allQuestions = [
+        {
+          title: "題目 1：在 p5.js 中，用來設定畫布『背景顏色』的正確函式是？",
+          options: [
+            { text: "background()", correct: true, emoji: "🎨" },
+            { text: "canvasColor()", correct: false, emoji: "⚙️" },
+            { text: "setColor()", correct: false, emoji: "🖌️" },
+            { text: "bgColor()", correct: false, emoji: "💻" },
+            { text: "drawBackground()", correct: false, emoji: "🖼️" },
+            { text: "setScreen()", correct: false, emoji: "📺" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 2：在畫布上繪製一個『圓形』的正確函式名稱是？",
+          options: [
+            { text: "circle()", correct: true, emoji: "🔴" },
+            { text: "drawCircle()", correct: false, emoji: "🟦" },
+            { text: "round()", correct: false, emoji: "🔺" },
+            { text: "ball()", correct: false, emoji: "⚽" },
+            { text: "makeCircle()", correct: false, emoji: "⚙️" },
+            { text: "shapeCircle()", correct: false, emoji: "📐" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 3：用來設定圖形『內部填滿顏色』的正確函式是？",
+          options: [
+            { text: "fill()", correct: true, emoji: "🪣" },
+            { text: "color()", correct: false, emoji: "🎨" },
+            { text: "paint()", correct: false, emoji: "🖌️" },
+            { text: "shapeColor()", correct: false, emoji: "🟧" },
+            { text: "brush()", correct: false, emoji: "🖊️" },
+            { text: "setHue()", correct: false, emoji: "🌈" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 4：在畫布上繪製一個『矩形（長方形）』的正確函式是？",
+          options: [
+            { text: "rect()", correct: true, emoji: "🟦" },
+            { text: "square()", correct: false, emoji: "🔴" },
+            { text: "box()", correct: false, emoji: "📦" },
+            { text: "drawRect()", correct: false, emoji: "📐" },
+            { text: "rectangle()", correct: false, emoji: "🔺" },
+            { text: "makeBox()", correct: false, emoji: "💻" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 5：p5.js 中專門用來執行『初始設定（如建立畫布）』且只執行一次的函式是？",
+          options: [
+            { text: "setup()", correct: true, emoji: "⚙️" },
+            { text: "start()", correct: false, emoji: "▶️" },
+            { text: "init()", correct: false, emoji: "💻" },
+            { text: "main()", correct: false, emoji: "🏠" },
+            { text: "begin()", correct: false, emoji: "🏁" },
+            { text: "create()", correct: false, emoji: "✨" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 6：p5.js 中會『持續重複執行』用來繪製動畫與畫面的函式是？",
+          options: [
+            { text: "draw()", correct: true, emoji: "🔄" },
+            { text: "loop()", correct: false, emoji: "🔁" },
+            { text: "animate()", correct: false, emoji: "🎞️" },
+            { text: "render()", correct: false, emoji: "🎨" },
+            { text: "update()", correct: false, emoji: "⚡" },
+            { text: "play()", correct: false, emoji: "▶️" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 7：用來設定圖形『外框顏色』的正確函式是？",
+          options: [
+            { text: "stroke()", correct: true, emoji: "✏️" },
+            { text: "border()", correct: false, emoji: "🪣" },
+            { text: "lineColor()", correct: false, emoji: "📏" },
+            { text: "outline()", correct: false, emoji: "🖊️" },
+            { text: "setStroke()", correct: false, emoji: "⚙️" },
+            { text: "frameColor()", correct: false, emoji: "🖼️" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 8：如果希望繪製圖形時『取消外框線』，該呼叫什麼函式？",
+          options: [
+            { text: "noStroke()", correct: true, emoji: "🚫" },
+            { text: "removeBorder()", correct: false, emoji: "✂️" },
+            { text: "strokeOff()", correct: false, emoji: "❌" },
+            { text: "cleanLine()", correct: false, emoji: "🧹" },
+            { text: "hideOutline()", correct: false, emoji: "👁️‍🗨️" },
+            { text: "zeroStroke()", correct: false, emoji: "0️⃣" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 9：如果希望圖形『不要填滿任何顏色（透明內部）』，該使用什麼函式？",
+          options: [
+            { text: "noFill()", correct: true, emoji: "🈳" },
+            { text: "transparent()", correct: false, emoji: "👻" },
+            { text: "clearColor()", correct: false, emoji: "💧" },
+            { text: "fillOff()", correct: false, emoji: "❌" },
+            { text: "emptyFill()", correct: false, emoji: "📭" },
+            { text: "removeFill()", correct: false, emoji: "🧹" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 10：在畫布上繪製一條『直線』的正確函式是？",
+          options: [
+            { text: "line()", correct: true, emoji: "📏" },
+            { text: "drawLine()", correct: false, emoji: "📐" },
+            { text: "path()", correct: false, emoji: "🛤️" },
+            { text: "segment()", correct: false, emoji: "✂️" },
+            { text: "vector()", correct: false, emoji: "↗️" },
+            { text: "strokeLine()", correct: false, emoji: "✏️" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 11：在畫布上繪製一個『三角形』的正確函式是？",
+          options: [
+            { text: "triangle()", correct: true, emoji: "🔺" },
+            { text: "drawTriangle()", correct: false, emoji: "🔴" },
+            { text: "tri()", correct: false, emoji: "🟦" },
+            { text: "polygon3()", correct: false, emoji: "3️⃣" },
+            { text: "shapeTriangle()", correct: false, emoji: "📐" },
+            { text: "makeTri()", correct: false, emoji: "✨" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 12：能即時取得『滑鼠目前 X 軸座標』的全域變數名稱是？",
+          options: [
+            { text: "mouseX", correct: true, emoji: "🖱️" },
+            { text: "cursorX", correct: false, emoji: "📍" },
+            { text: "pointerX", correct: false, emoji: "👉" },
+            { text: "getMouseX()", correct: false, emoji: "🔍" },
+            { text: "posX", correct: false, emoji: "📌" },
+            { text: "touchX", correct: false, emoji: "👆" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 13：能即時取得『滑鼠目前 Y 軸座標』的全域變數名稱是？",
+          options: [
+            { text: "mouseY", correct: true, emoji: "🖱️" },
+            { text: "cursorY", correct: false, emoji: "📍" },
+            { text: "pointerY", correct: false, emoji: "👇" },
+            { text: "getMouseY()", correct: false, emoji: "🔍" },
+            { text: "posY", correct: false, emoji: "📌" },
+            { text: "touchY", correct: false, emoji: "👆" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 14：用來在畫布上『顯示文字』的正確函式是？",
+          options: [
+            { text: "text()", correct: true, emoji: "📝" },
+            { text: "drawText()", correct: false, emoji: "✍️" },
+            { text: "write()", correct: false, emoji: "📖" },
+            { text: "printText()", correct: false, emoji: "🖨️" },
+            { text: "showString()", correct: false, emoji: "💬" },
+            { text: "label()", correct: false, emoji: "🏷️" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 15：用來調整畫布上『文字大小』的正確函式是？",
+          options: [
+            { text: "textSize()", correct: true, emoji: "🔠" },
+            { text: "setFontSize()", correct: false, emoji: "🎚️" },
+            { text: "textLength()", correct: false, emoji: "📏" },
+            { text: "fontSize()", correct: false, emoji: "🔤" },
+            { text: "styleText()", correct: false, emoji: "🎨" },
+            { text: "scaleText()", correct: false, emoji: "🔍" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 16：代表目前『畫布總寬度』的全域變數是？",
+          options: [
+            { text: "width", correct: true, emoji: "↔️" },
+            { text: "canvasWidth", correct: false, emoji: "📏" },
+            { text: "screenWidth", correct: false, emoji: "💻" },
+            { text: "windowW", correct: false, emoji: "🪟" },
+            { text: "stageWidth", correct: false, emoji: "📐" },
+            { text: "boxWidth", correct: false, emoji: "📦" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 17：代表目前『畫布總高度』的全域變數是？",
+          options: [
+            { text: "height", correct: true, emoji: "↕️" },
+            { text: "canvasHeight", correct: false, emoji: "📏" },
+            { text: "screenHeight", correct: false, emoji: "💻" },
+            { text: "windowH", correct: false, emoji: "🪟" },
+            { text: "stageHeight", correct: false, emoji: "📐" },
+            { text: "boxHeight", correct: false, emoji: "📦" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 18：用來產生『隨機數值』的正確函式是？",
+          options: [
+            { text: "random()", correct: true, emoji: "🎲" },
+            { text: "rand()", correct: false, emoji: "🔢" },
+            { text: "getRandom()", correct: false, emoji: "🔮" },
+            { text: "dice()", correct: false, emoji: "🎯" },
+            { text: "chance()", correct: false, emoji: "🍀" },
+            { text: "makeRandom()", correct: false, emoji: "✨" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 19：在 setup() 中建立指定寬高的畫布，正確的函式是？",
+          options: [
+            { text: "createCanvas()", correct: true, emoji: "🖼️" },
+            { text: "makeCanvas()", correct: false, emoji: "🛠️" },
+            { text: "newCanvas()", correct: false, emoji: "✨" },
+            { text: "setWindow()", correct: false, emoji: "🪟" },
+            { text: "buildScreen()", correct: false, emoji: "🏗️" },
+            { text: "initCanvas()", correct: false, emoji: "💻" }
+          ],
+          userSelectionIndex: null
+        },
+        {
+          title: "題目 20：控制 draw() 每一秒鐘繪製幾幀（更新速率）的函式是？",
+          options: [
+            { text: "frameRate()", correct: true, emoji: "⏱️" },
+            { text: "setFPS()", correct: false, emoji: "⚡" },
+            { text: "speed()", correct: false, emoji: "🚀" },
+            { text: "rate()", correct: false, emoji: "📈" },
+            { text: "drawSpeed()", correct: false, emoji: "🏎️" },
+            { text: "animateFPS()", correct: false, emoji: "🎬" }
+          ],
+          userSelectionIndex: null
+        }
+      ];
+
+      // 從 20 題中隨機抽取 10 題
+      pickRandomTenQuestions();
+    }
+
+    // 將 20 題打亂並隨機挑選 10 題作為本次測驗
+    function pickRandomTenQuestions() {
+      let shuffled = shuffle([...allQuestions]);
+      quizQuestions = shuffled.slice(0, 10);
+
+      // 將每一題的 6 個選項順序隨機打亂，並重置使用者的選擇狀態
+      for (let q of quizQuestions) {
+        q.userSelectionIndex = null;
+        shuffle(q.options, true);
+      }
+    }
+
+    // 建立畫布下方的操作按鈕（上一題、下一題、交卷看成績）
+    function createUIElements() {
+      // 上一題按鈕
+      prevButton = createButton('⬅ 上一題');
+      prevButton.position(width / 2 - 160, height - 75);
+      prevButton.style('padding', '12px 20px');
+      prevButton.style('font-size', '15px');
+      prevButton.style('background-color', '#6c757d');
+      prevButton.style('color', 'white');
+      prevButton.style('border', 'none');
+      prevButton.style('border-radius', '8px');
+      prevButton.style('cursor', 'pointer');
+      prevButton.style('box-shadow', '0 4px 6px rgba(0,0,0,0.1)');
+      
+      prevButton.mousePressed(() => {
+        if (!submitted && currentQuestionIndex > 0) {
+          currentQuestionIndex--;
+          updateButtonVisibility();
+        }
+      });
+
+      // 下一題按鈕
+      nextButton = createButton('下一題 ➡');
+      nextButton.position(width / 2 + 30, height - 75);
+      nextButton.style('padding', '12px 20px');
+      nextButton.style('font-size', '15px');
+      nextButton.style('background-color', '#0d6efd');
+      nextButton.style('color', 'white');
+      nextButton.style('border', 'none');
+      nextButton.style('border-radius', '8px');
+      nextButton.style('cursor', 'pointer');
+      nextButton.style('box-shadow', '0 4px 6px rgba(0,0,0,0.1)');
+      
+      nextButton.mousePressed(() => {
+        if (!submitted && currentQuestionIndex < quizQuestions.length - 1) {
+          currentQuestionIndex++;
+          updateButtonVisibility();
+        }
+      });
+
+      // 交卷看成績按鈕（最後一題才會出現）
+      submitButton = createButton('交卷看總成績 🎯');
+      submitButton.position(width / 2 - 80, height - 75);
+      submitButton.style('padding', '12px 24px');
+      submitButton.style('font-size', '15px');
+      submitButton.style('background-color', '#198754');
+      submitButton.style('color', 'white');
+      submitButton.style('border', 'none');
+      submitButton.style('border-radius', '8px');
+      submitButton.style('cursor', 'pointer');
+      submitButton.style('box-shadow', '0 4px 6px rgba(0,0,0,0.1)');
+      
+      submitButton.mousePressed(() => {
+        if (!submitted) {
+          calculateScore();
+          submitted = true;
+          prevButton.hide();
+          nextButton.hide();
+          submitButton.hide();
+        }
+      });
+
+      // 初始化按鈕顯示狀態
+      updateButtonVisibility();
+    }
+
+    // 根據目前題目的索引，動態調整按鈕的顯示與隱藏
+    function updateButtonVisibility() {
+      if (currentQuestionIndex === 0) {
+        prevButton.hide();
+      } else {
+        prevButton.show();
+      }
+
+      if (currentQuestionIndex === quizQuestions.length - 1) {
+        nextButton.hide();
+        submitButton.show();
+      } else {
+        nextButton.show();
+        submitButton.hide();
+      }
+    }
+
+    // 繪製頂部標題說明
+    function drawHeader() {
+      fill(33, 37, 41);
+      noStroke();
+      textAlign(CENTER, CENTER);
+      textSize(24);
+      text("p5.js 基礎程式設計 - 圖像化選項測驗系統", width / 2, 30);
+      
+      textSize(14);
+      fill(108, 117, 125);
+      let progressText = submitted ? "測驗已完成" : `目前進度：第 ${currentQuestionIndex + 1} 題 / 共 ${quizQuestions.length} 題`;
+      text(progressText + " | 觀察題目與選項圖示，點擊正確的選項卡片作答", width / 2, 60);
+    }
+
+    // 繪製選擇題主介面（上方題目區與下方 6 個對應圖像選項）
+    let optionBoxes = [];
+
+    function drawQuizInterface() {
+      let q = quizQuestions[currentQuestionIndex];
+      
+      // 上方題目與背景區塊
+      fill(255);
+      stroke(222, 226, 230);
+      strokeWeight(2);
+      rectMode(CENTER);
+      
+      let boxWidth = min(width * 0.85, 700);
+      let boxHeight = 130;
+      let boxX = width / 2;
+      let boxY = 135;
+      rect(boxX, boxY, boxWidth, boxHeight, 15);
+
+      fill(33, 37, 41);
+      noStroke();
+      textSize(17);
+      textAlign(CENTER, CENTER);
+      text(q.title, boxX, boxY);
+
+      // 下方六個圖像卡片選項
+      let startX = width / 2 - 320;
+      let startY = 260;
+      let spacingX = 220;
+      let spacingY = 115;
+
+      optionBoxes = [];
+
+      for (let i = 0; i < q.options.length; i++) {
+        let opt = q.options[i];
+        let col = i % 3;
+        let row = floor(i / 3);
+        
+        let optX = startX + col * spacingX;
+        let optY = startY + row * spacingY;
+        let optW = 195;
+        let optH = 95;
+
+        rectMode(CENTER);
+        
+        // 判斷是否選中
+        if (q.userSelectionIndex === i) {
+          fill(209, 231, 255);
+          stroke(13, 110, 253);
+          strokeWeight(2.5);
+        } else {
+          fill(255);
+          stroke(222, 226, 230);
+          strokeWeight(2);
+        }
+        rect(optX, optY, optW, optH, 12);
+
+        // 繪製選項專屬的大型視覺 Emoji 圖示
+        textSize(24);
+        textAlign(CENTER, CENTER);
+        text(opt.emoji, optX, optY - 20);
+
+        // 繪製選項文字名稱
+        fill(33, 37, 41);
+        noStroke();
+        textSize(14);
+        textAlign(CENTER, CENTER);
+        text(opt.text, optX, optY + 16);
+
+        optionBoxes.push({
+          index: i,
+          x: optX - optW / 2,
+          y: optY - optH / 2,
+          w: optW,
+          h: optH
+        });
+      }
+    }
+
+    // 滑鼠點擊事件：判定使用者點擊了哪一個選項
+    function mousePressed() {
+      if (submitted) return;
+
+      let q = quizQuestions[currentQuestionIndex];
+      
+      for (let box of optionBoxes) {
+        if (
+          mouseX > box.x &&
+          mouseX < box.x + box.w &&
+          mouseY > box.y &&
+          mouseY < box.y + box.h
+        ) {
+          q.userSelectionIndex = box.index;
+          break;
+        }
+      }
+    }
+
+    // 計算總成績
+    function calculateScore() {
+      score = 0;
+      let total = quizQuestions.length;
+      
+      for (let q of quizQuestions) {
+        if (q.userSelectionIndex !== null) {
+          let selectedOpt = q.options[q.userSelectionIndex];
+          if (selectedOpt && selectedOpt.correct) {
+            score += 1;
+          }
+        }
+      }
+
+      let percentage = (score / total) * 100;
+      if (percentage > 60) {
+        confettiActive = true;
+        initConfetti();
+      }
+    }
+
+    // 繪製成績與總結介面
+    function drawResultInterface() {
+      fill(255);
+      stroke(222, 226, 230);
+      strokeWeight(2);
+      rectMode(CENTER);
+      
+      let resW = min(width * 0.85, 520);
+      let resH = 250;
+      let resX = width / 2;
+      let resY = height / 2 - 20;
+      
+      rect(resX, resY, resW, resH, 15);
+
+      fill(33, 37, 41);
+      noStroke();
+      textSize(24);
+      textAlign(CENTER, CENTER);
+      text("🎉 測驗總成績結算", resX, resY - 75);
+
+      let total = quizQuestions.length;
+      let percentage = (score / total) * 100;
+      textSize(20);
+      text(`你的得分：${score} / ${total} 題 (${percentage}%)`, resX, resY - 20);
+
+      textSize(16);
+      if (percentage > 60) {
+        fill(40, 167, 69);
+        text("太棒了！成績超過 60%，成功解鎖彩色彩帶慶祝特效！🌟", resX, resY + 35);
+      } else {
+        fill(220, 53, 69);
+        text("再加油一下！多複習 p5.js 基礎觀念就能過關喔！💪", resX, resY + 35);
+      }
+    }
+
+    // 初始化彩帶粒子系統
+    function initConfetti() {
+      confettiParticles = [];
+      for (let i = 0; i < 180; i++) {
+        confettiParticles.push({
+          x: random(width),
+          y: random(-height, 0),
+          size: random(8, 16),
+          color: color(random(200, 255), random(100, 200), random(100, 255)),
+          speedY: random(2, 6),
+          speedX: random(-2, 2),
+          rotation: random(TWO_PI),
+          rotationSpeed: random(0.02, 0.08)
+        });
+      }
+    }
+
+    // 更新並繪製過關彩帶動畫
+    function updateAndDrawConfetti() {
+      noStroke();
+      for (let p of confettiParticles) {
+        push();
+        translate(p.x, p.y);
+        rotate(p.rotation);
+        fill(p.color);
+        rectMode(CENTER);
+        rect(0, 0, p.size, p.size * 0.5, 2);
+        pop();
+
+        p.y += p.speedY;
+        p.x += p.speedX;
+        p.rotation += p.rotationSpeed;
+
+        if (p.y > height) {
+          p.y = random(-50, 0);
+          p.x = random(width);
+        }
+      }
+    }
+
+    // 視窗大小改變時自動調整畫布與按鈕響應
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+      if (prevButton) {
+        prevButton.position(width / 2 - 160, height - 75);
+      }
+      if (nextButton) {
+        nextButton.position(width / 2 + 30, height - 75);
+      }
+      if (submitButton) {
+        submitButton.position(width / 2 - 80, height - 75);
+      }
+    }
+  </script>
+
+</body>
+</html>
